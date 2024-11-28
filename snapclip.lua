@@ -17,12 +17,9 @@
 --]]
 
 
-clipboard_tool = ""
-clipboard_tool_args = ""
-temporary_directory = ""
-snapshot_name = "screenshot"
-snapshot_format = "png"
-snapshot = snapshot_name .. '.' .. snapshot_format
+clipboard_cmd = ""
+tmp = ""
+screenshot = "screenshot.png"
 
 
 function descriptor()
@@ -40,7 +37,7 @@ function activate()
     logging("Activated", "info")
     define_environment()
     local dialog = vlc.dialog("Snapclip")
-    local button = dialog:add_button("Screenshot to clipboard", take_snapshot)
+    local button = dialog:add_button("Screenshot to clipboard", take_screenshot)
     dialog:show()
 end
 
@@ -63,40 +60,46 @@ end
 function define_environment()
     local osname = get_os_name()
 
-    vlc.config.set("snapshot-format", snapshot_format)
+    vlc.config.set("snapshot-format", "png")
     vlc.config.set("snapshot-prefix", "")
 
     logging("OS: " .. osname, "info")
     if osname == "GNU/Linux" then
-        temporary_directory = "/tmp/"
-        clipboard_tool = "xclip"
+        tmp = "/tmp/"
+        clipboard_cmd = string.format(
+            "xclip -selection clipboard -t image/png -i %s", tmp .. screenshot
+        ) 
     elseif osname == "Darwin" then
-        temporary_directory = "/tmp/"
-        clipboard_tool = "pbcopy"
+        tmp = "/tmp/"
+        clipboard_cmd = string.format(
+            "osascript -e 'set the clipboard to (read (POSIX file '%s') as {«class PNGf»})'",
+            tmp .. screenshot
+        )
     elseif osname == "Windows" then
-        clipboard_tool = "powershell"
-        clipboard_tool_args = "-windowstyle hidden -command Set-Clipboard -Path"
-        temporary_directory = os.getenv("temp") .. "\\"
+        tmp = os.getenv("temp") .. "\\"
+        clipboard_cmd = string.format(
+            "powershell.exe -windowstyle hidden -command Set-Clipboard -Path %s",
+            tmp .. screenshot
+        )
     end
 
-    logging("Clipboard command: " .. clipboard_tool, "info")
-    logging("Clipboard args: " .. clipboard_tool_args, "info")
-    logging("Temporary directory: " .. temporary_directory, "info")
-    logging("Snapshot path: " .. temporary_directory .. snapshot, "info")
+    logging("Clipboard command: " .. clipboard_cmd, "info")
+    logging("Temporary directory: " .. tmp, "info")
+    logging("Screenshot path: " .. tmp .. screenshot, "info")
 
-    vlc.config.set("snapshot-path", temporary_directory .. snapshot)
+    vlc.config.set("snapshot-path", tmp .. screenshot)
 end
 
-function take_snapshot()
+function take_screenshot()
     local vout = vlc.object.vout()
 
     if vout then
-        local screenshot = vlc.var.set(vout, "video-snapshot", nil)
-        if screenshot then
-            logging("Snapshot taking success", "info")
+        local snapshot = vlc.var.set(vout, "video-snapshot", nil)
+        if snapshot then
+            logging("Screenshot take success!", "info")
             set_clipboard()
         else
-            logging(screenshot, "error")
+            logging(snapshot, "error")
         end
     else
         logging("No video track detected, have you opened the video?", "error")
@@ -105,12 +108,7 @@ end
 
 function set_clipboard()
     logging("Set screenshot to clipboard", "info")
-    local command = string.format(
-        "%s %s %s%s", clipboard_tool, clipboard_tool_args, temporary_directory, snapshot
-    )
-    logging(command, "info")
-
-    local clip, err = assert(os.execute(command))
+    local clip, err = assert(os.execute(clipboard_cmd))
     if clip then
         logging("The screenshot was clipped to clipboard succusess.", "info")
     else
