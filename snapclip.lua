@@ -40,7 +40,7 @@ function activate()
         local button = dialog:add_button("Screenshot to clipboard", take_screenshot)
         dialog:show()
     else
-        return false
+        deactivate()
     end
 end
 
