@@ -35,14 +35,17 @@ end
 
 function activate()
     logging("Activated", "info")
-    define_environment()
-    local dialog = vlc.dialog("Snapclip")
-    local button = dialog:add_button("Screenshot to clipboard", take_screenshot)
-    dialog:show()
+    if define_environment() then 
+        local dialog = vlc.dialog("Snapclip")
+        local button = dialog:add_button("Screenshot to clipboard", take_screenshot)
+        dialog:show()
+    else
+        return false
+    end
 end
 
 function deactivate()
-    logging("DEACTIVATE", "info")
+    logging("Deactivated", "info")
 end
 
 function get_os_name()
@@ -60,34 +63,39 @@ end
 function define_environment()
     local osname = get_os_name()
 
-    vlc.config.set("snapshot-format", "png")
-    vlc.config.set("snapshot-prefix", "")
-
     logging("OS: " .. osname, "info")
     if osname == "GNU/Linux" then
         tmp = "/tmp/"
         clipboard_cmd = string.format(
             "xclip -selection clipboard -t image/png -i %s", tmp .. screenshot
-        ) 
+        )
+        local fh,state,code = os.execute("xclip")
+        if code == 127 then
+            logging("Please, install xclip `sudo apt install xclip`", "error")
+            return false
+        end
     elseif osname == "Darwin" then
-        tmp = "/tmp/"
+        tmp = os.getenv("TMPDIR")
         clipboard_cmd = string.format(
-            "osascript -e 'set the clipboard to (read (POSIX file '%s') as {«class PNGf»})'",
+            "osascript -e 'set the clipboard to (read (POSIX file \"%s\") as {«class PNGf»})'",
             tmp .. screenshot
         )
     elseif osname == "Windows" then
-        tmp = os.getenv("temp") .. "\\"
+        tmp = os.getenv("TEMP") .. "\\"
         clipboard_cmd = string.format(
             "powershell.exe -windowstyle hidden -command Set-Clipboard -Path %s",
             tmp .. screenshot
         )
     end
-
+    
     logging("Clipboard command: " .. clipboard_cmd, "info")
     logging("Temporary directory: " .. tmp, "info")
     logging("Screenshot path: " .. tmp .. screenshot, "info")
-
+    
+    vlc.config.set("snapshot-format", "png")
+    vlc.config.set("snapshot-prefix", "")
     vlc.config.set("snapshot-path", tmp .. screenshot)
+    return true
 end
 
 function take_screenshot()
