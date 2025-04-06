@@ -25,7 +25,7 @@ screenshot = "screenshot.png"
 function descriptor()
     return {
 		title = "Snapclip";
-		version = "1.0";
+		version = "1.1";
 		author = "Sergey Degtyar";
 		url = "https://github.com/pwd491/snapclip";
 		shortdesc = "Snapclip";
@@ -37,7 +37,7 @@ function activate()
     logging("Activated", "info")
     if define_environment() then 
         local dialog = vlc.dialog("Snapclip")
-        local button = dialog:add_button("Screenshot to clipboard", take_screenshot)
+        local button = dialog:add_button("Screenshot to clipboard", take_screenshot, 0, 0, 50)
         dialog:show()
     else
         deactivate()
@@ -46,6 +46,10 @@ end
 
 function deactivate()
     logging("Deactivated", "info")
+end
+
+function close()
+    vlc.deactivate()
 end
 
 function get_os_name()
